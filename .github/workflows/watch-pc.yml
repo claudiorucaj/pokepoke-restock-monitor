@@ -1,0 +1,54 @@
+name: Monitor (PC)
+
+# Fonte primaria. Gira sul runner self-hosted installato sul PC di casa:
+# l'IP residenziale e quello che Amazon blocca di meno.
+#
+# Il cron di GitHub non scende sotto i 5 minuti, quindi la frequenza di 60
+# secondi la fa il ciclo interno a monitor.py: il job vive 55 minuti e il
+# cron lo riavvia ogni ora.
+
+on:
+  schedule:
+    - cron: "0 * * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: monitor-pc
+  cancel-in-progress: false
+
+jobs:
+  controlla:
+    runs-on: [self-hosted]
+    timeout-minutes: 70
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Installa dipendenze
+        run: pip install -r requirements.txt
+
+      - name: Verifica il parser prima di fidarsi
+        run: python monitor.py --selftest
+
+      - name: Recupera lo stato del giro precedente
+        uses: actions/cache/restore@v4
+        with:
+          path: state.json
+          key: stato-${{ github.run_id }}
+          restore-keys: stato-
+
+      - name: Monitoraggio
+        env:
+          TG_BOT_TOKEN: ${{ secrets.TG_BOT_TOKEN }}
+          TG_CHAT_ID: ${{ secrets.TG_CHAT_ID }}
+        run: python monitor.py --durata-min 55
+
+      - name: Salva lo stato per il giro successivo
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: state.json
+          key: stato-${{ github.run_id }}

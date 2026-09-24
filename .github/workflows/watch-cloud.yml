@@ -1,0 +1,59 @@
+name: Monitor (cloud, riserva)
+
+# Copertura per quando il PC e spento. Gira su runner GitHub, che hanno IP
+# datacenter: Amazon li blocca molto piu spesso, quindi questa e una rete di
+# sicurezza, non la fonte principale.
+#
+# Prima di ogni giro chiede a GitHub se il runner del PC sta lavorando. Se si,
+# salta il giro senza nemmeno contattare Amazon: due controllori insieme
+# raddoppierebbero le richieste e quindi i blocchi.
+#
+# Richiede il secret PAT_RUNNERS: un token fine-grained sulla repo con
+# permesso "Administration: read", l'unico modo di leggere lo stato dei runner.
+
+on:
+  schedule:
+    - cron: "0 * * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: monitor-cloud
+  cancel-in-progress: false
+
+jobs:
+  controlla:
+    runs-on: ubuntu-latest
+    timeout-minutes: 70
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Installa dipendenze
+        run: pip install -r requirements.txt
+
+      - name: Verifica il parser prima di fidarsi
+        run: python monitor.py --selftest
+
+      - name: Recupera lo stato del giro precedente
+        uses: actions/cache/restore@v4
+        with:
+          path: state.json
+          key: stato-${{ github.run_id }}
+          restore-keys: stato-
+
+      - name: Monitoraggio (cede il passo al PC)
+        env:
+          TG_BOT_TOKEN: ${{ secrets.TG_BOT_TOKEN }}
+          TG_CHAT_ID: ${{ secrets.TG_CHAT_ID }}
+          PAT_RUNNERS: ${{ secrets.PAT_RUNNERS }}
+        run: python monitor.py --durata-min 55 --cede-al-pc
+
+      - name: Salva lo stato per il giro successivo
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: state.json
+          key: stato-${{ github.run_id }}
