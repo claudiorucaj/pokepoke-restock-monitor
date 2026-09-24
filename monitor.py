@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import socket
 import sys
 import time
 from datetime import datetime, timedelta
@@ -39,6 +40,27 @@ def log(*parti):
 
 def leggi_config(percorso=CONFIG) -> dict:
     return json.loads(Path(percorso).read_text(encoding="utf-8"))
+
+
+def istanza_unica(porta: int):
+    """Impedisce che due monitor girino insieme.
+
+    Il task di Windows parte ogni 5 minuti: cosi, se il PC si riavvia o il
+    processo muore, il monitoraggio riprende in fretta. Ma se un'istanza sta
+    gia lavorando, la nuova deve farsi da parte. Un socket in ascolto e il
+    lucchetto piu semplice che il sistema operativo rilascia da solo quando
+    il processo termina, anche se termina male.
+
+    Ritorna il socket (da tenere vivo) oppure None se un'altra istanza c'e gia.
+    """
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    try:
+        s.bind(("127.0.0.1", porta))
+        s.listen(1)
+        return s
+    except OSError:
+        s.close()
+        return None
 
 
 # --- un giro di controllo ---------------------------------------------------
@@ -240,6 +262,13 @@ def main(argv=None) -> int:
         ok = tg.invia("✅ Monitor Amazon: prova di collegamento riuscita.")
         print("messaggio inviato" if ok else "invio fallito")
         return 0 if ok else 1
+
+    lucchetto = None
+    if not args.once:
+        lucchetto = istanza_unica(cfg.get("porta_lucchetto", 47653))
+        if lucchetto is None:
+            log("un altro monitor sta gia girando, esco")
+            return 0
 
     dati = stato_mod.carica(STATO)
     sess = amazon.sessione()
