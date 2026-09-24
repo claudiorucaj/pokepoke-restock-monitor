@@ -306,7 +306,7 @@ def main(argv=None) -> int:
         f"{' (dry-run)' if args.dry_run else ''}")
 
     repo = os.environ.get("GITHUB_REPOSITORY", "")
-    token_runner = os.environ.get("PAT_RUNNERS", "")
+    token_actions = os.environ.get("GITHUB_TOKEN", "")
 
     while True:
         numero_giro += 1
@@ -314,7 +314,7 @@ def main(argv=None) -> int:
 
         # Il runner cloud non tocca Amazon finche il PC copre: due
         # controllori insieme raddoppierebbero le richieste e quindi i blocchi.
-        if args.cede_al_pc and leader.pc_attivo(repo, token_runner):
+        if args.cede_al_pc and leader.pc_attivo(repo, token_actions):
             log(f"giro {numero_giro}: il PC sta lavorando, cedo")
             if args.once or datetime.now() >= scadenza:
                 break

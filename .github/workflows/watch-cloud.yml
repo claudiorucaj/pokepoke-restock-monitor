@@ -4,17 +4,22 @@ name: Monitor (cloud, riserva)
 # datacenter: Amazon li blocca molto piu spesso, quindi questa e una rete di
 # sicurezza, non la fonte principale.
 #
-# Prima di ogni giro chiede a GitHub se il runner del PC sta lavorando. Se si,
-# salta il giro senza nemmeno contattare Amazon: due controllori insieme
-# raddoppierebbero le richieste e quindi i blocchi.
+# Prima di ogni giro chiede a GitHub se il workflow del PC ha un'esecuzione in
+# corso. Se si, salta il giro senza nemmeno contattare Amazon: due controllori
+# insieme raddoppierebbero le richieste e quindi i blocchi.
 #
-# Richiede il secret PAT_RUNNERS: un token fine-grained sulla repo con
-# permesso "Administration: read", l'unico modo di leggere lo stato dei runner.
+# Guarda le esecuzioni e non i runner perche leggere i runner richiederebbe un
+# token con permesso Administration, mentre per le esecuzioni basta il token
+# automatico di Actions con actions: read. Un secret in meno da gestire.
 
 on:
   schedule:
     - cron: "0 * * * *"
   workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
 
 concurrency:
   group: monitor-cloud
@@ -48,7 +53,7 @@ jobs:
         env:
           TG_BOT_TOKEN: ${{ secrets.TG_BOT_TOKEN }}
           TG_CHAT_ID: ${{ secrets.TG_CHAT_ID }}
-          PAT_RUNNERS: ${{ secrets.PAT_RUNNERS }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: python monitor.py --durata-min 55 --cede-al-pc
 
       - name: Salva lo stato per il giro successivo

@@ -12,8 +12,11 @@ class SessioneFinta:
     def __init__(self, corpo, codice=200):
         self.corpo = corpo
         self.codice = codice
+        self.parametri = None
 
-    def get(self, url, headers=None, timeout=None):
+    def get(self, url, params=None, headers=None, timeout=None):
+        self.parametri = params
+
         class R:
             pass
 
@@ -28,31 +31,28 @@ class SessioneCheEsplode:
         raise RuntimeError("rete assente")
 
 
-def test_runner_online_e_occupato_significa_pc_attivo():
-    sess = SessioneFinta({"runners": [{"status": "online", "busy": True}]})
-    assert pc_attivo("tizio/repo", "tok", sess) is True
+def test_esecuzione_in_corso_significa_pc_attivo():
+    sess = SessioneFinta({"total_count": 1})
+    assert pc_attivo("tizio/repo", "tok", sess=sess) is True
 
 
-def test_runner_online_ma_fermo_significa_pc_non_attivo():
-    """Se il runner e acceso ma non sta girando nulla, il job del PC e morto:
+def test_nessuna_esecuzione_in_corso_significa_pc_fermo():
+    """Se il PC e spento il suo job resta in coda, non in esecuzione:
     il cloud deve subentrare."""
-    sess = SessioneFinta({"runners": [{"status": "online", "busy": False}]})
-    assert pc_attivo("tizio/repo", "tok", sess) is False
+    sess = SessioneFinta({"total_count": 0})
+    assert pc_attivo("tizio/repo", "tok", sess=sess) is False
 
 
-def test_runner_offline_significa_pc_spento():
-    sess = SessioneFinta({"runners": [{"status": "offline", "busy": False}]})
-    assert pc_attivo("tizio/repo", "tok", sess) is False
-
-
-def test_nessun_runner_registrato():
-    assert pc_attivo("tizio/repo", "tok", SessioneFinta({"runners": []})) is False
+def test_chiede_solo_le_esecuzioni_in_corso():
+    sess = SessioneFinta({"total_count": 0})
+    pc_attivo("tizio/repo", "tok", sess=sess)
+    assert sess.parametri["status"] == "in_progress"
 
 
 def test_errore_api_fa_lavorare_il_cloud():
     """Meglio un avviso doppio che un restock perso."""
-    assert pc_attivo("tizio/repo", "tok", SessioneFinta({}, codice=403)) is False
-    assert pc_attivo("tizio/repo", "tok", SessioneCheEsplode()) is False
+    assert pc_attivo("tizio/repo", "tok", sess=SessioneFinta({}, codice=403)) is False
+    assert pc_attivo("tizio/repo", "tok", sess=SessioneCheEsplode()) is False
 
 
 def test_credenziali_mancanti_fanno_lavorare_il_cloud():

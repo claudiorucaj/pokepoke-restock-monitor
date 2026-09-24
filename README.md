@@ -106,8 +106,8 @@ Il codice per la copertura 24/7 è già pronto, ma è inerte finché la repo non
 viene collegata a GitHub. Richiede un login che solo tu puoi fare.
 
 L'architettura è ibrida e **non produce avvisi doppi**: il runner cloud, prima
-di ogni giro, chiede a GitHub se il runner del PC sta lavorando. Se sì, salta
-il giro senza nemmeno contattare Amazon. C'è sempre al massimo un controllore
+di ogni giro, chiede a GitHub se il workflow del PC ha un'esecuzione in corso.
+Se sì, salta il giro senza nemmeno contattare Amazon. C'è sempre al massimo un controllore
 attivo, e il PC — che ha IP residenziale e viene bloccato molto meno — vince
 sempre quando è acceso.
 
@@ -122,10 +122,11 @@ Passi:
    git push -u origin implementazione:main
    ```
 
-2. **Aggiungi tre Secrets** (Settings → Secrets and variables → Actions):
-   - `TG_BOT_TOKEN`, `TG_CHAT_ID` — li trovi nel file `.env` locale
-   - `PAT_RUNNERS` — token fine-grained sulla repo con permesso
-     *Administration: read*. Serve al runner cloud per sapere se il PC è vivo.
+2. **Aggiungi due Secrets** (Settings → Secrets and variables → Actions):
+   `TG_BOT_TOKEN` e `TG_CHAT_ID`, che trovi nel file `.env` locale. Non serve
+   nessun token aggiuntivo: per sapere se il PC è vivo, il runner cloud guarda
+   se il workflow del PC ha un'esecuzione in corso, e per quello basta il
+   token automatico di Actions.
 
 3. **Installa il runner self-hosted sul PC** (Settings → Actions → Runners →
    New self-hosted runner → Windows) e registralo come servizio, così parte da
