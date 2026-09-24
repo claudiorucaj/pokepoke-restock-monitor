@@ -14,7 +14,11 @@ name: Monitor (cloud, riserva)
 
 on:
   schedule:
-    - cron: "0 * * * *"
+    # Sfasato di 4 minuti rispetto al workflow del PC di proposito. Partendo
+    # entrambi a :00, il runner cloud (che si avvia in pochi secondi) vedrebbe
+    # il job del PC ancora in coda invece che in corso, si crederebbe scoperto
+    # e monitorerebbe in doppio per qualche minuto.
+    - cron: "4 * * * *"
   workflow_dispatch:
 
 permissions:

@@ -3,8 +3,11 @@
 Avvisa su Telegram, con il link ufficiale Amazon, nel momento in cui uno dei
 prodotti monitorati diventa acquistabile direttamente da Amazon.
 
-**Stato: attivo sul PC.** Il monitoraggio gira in background, senza finestre,
-e riparte da solo dopo un riavvio. Non serve fare nulla per usarlo.
+**Stato: attivo 24/7.** Il monitoraggio gira tramite GitHub Actions su due
+esecutori che non lavorano mai insieme: il runner sul PC come fonte primaria,
+un runner cloud come riserva quando il PC e spento. Non serve fare nulla.
+
+Repo: https://github.com/claudiorucaj/pokepoke-restock-monitor
 
 ## Cosa controlla
 
@@ -80,75 +83,89 @@ Nello stesso file si regolano i tempi: `intervallo_ciclo_s`,
 
 ## Come è avviato
 
-Un'attività pianificata di Windows, `PokePoke-Monitor`, parte ogni 5 minuti e
-lancia `avvia_nascosto.vbs`, che a sua volta esegue `avvia.cmd` senza mostrare
-finestre. Ogni esecuzione dura 55 minuti.
+Tutto passa da GitHub Actions. Due workflow, entrambi con un ciclo interno da
+55 minuti riavviato da un cron orario, perché il cron di GitHub non scende
+sotto i 5 minuti mentre a noi serve un giro ogni 60 secondi.
 
-Le esecuzioni non si accavallano: `monitor.py` tiene un lucchetto (un socket
-su `127.0.0.1:47653`) e ogni istanza in più esce subito. Partire ogni 5 minuti
-invece che ogni ora serve a riprendere in fretta dopo un riavvio del PC o la
-morte del processo.
+- **`watch-pc.yml`** (cron `:00`) gira sul runner self-hosted del PC. È la
+  fonte primaria: IP residenziale, quello che Amazon blocca di meno.
+- **`watch-cloud.yml`** (cron `:04`) gira su runner GitHub. Prima di ogni
+  giro chiede a GitHub se il workflow del PC ha un'esecuzione *in corso*: se
+  sì salta il giro senza nemmeno contattare Amazon. Un PC spento lascia il suo
+  job in coda anziché in esecuzione, ed è esattamente quella differenza a far
+  subentrare il cloud.
 
-Il registro sta in `monitor.log`.
+I due cron sono sfasati di proposito: partendo insieme, il runner cloud — che
+si avvia in pochi secondi — vedrebbe il job del PC ancora in coda e si
+crederebbe scoperto, monitorando in doppio per qualche minuto.
+
+### Il runner sul PC
+
+L'utente non è amministratore, quindi il runner **non** è installato come
+servizio Windows. Lo tiene acceso l'attività pianificata `PokePoke-Runner`,
+che scatta ogni 5 minuti e lancia `avvia_runner_nascosto.vbs`.
+
+Quel lanciatore controlla prima se un `Runner.Listener.exe` è già vivo e in
+quel caso esce. Non è un dettaglio: il runner GitHub **non** rifiuta di
+avviarsi due volte, e senza quel controllo se ne accumulava uno ogni cinque
+minuti, tutti a contendersi la stessa sessione. Con il controllo, il task
+diventa un guardiano che lo riavvia solo se è morto.
 
 ```powershell
-schtasks /query /tn PokePoke-Monitor     # stato
-schtasks /run   /tn PokePoke-Monitor     # avvio immediato
-schtasks /end   /tn PokePoke-Monitor     # ferma l'esecuzione in corso
-schtasks /delete /tn PokePoke-Monitor /f # disinstalla
+schtasks /query /tn PokePoke-Runner       # stato
+schtasks /run   /tn PokePoke-Runner       # avvio immediato
+Get-Process Runner.Listener               # deve essercene esattamente uno
 ```
 
-Per reinstallarlo: `powershell -ExecutionPolicy Bypass -File installa_task_windows.ps1`
+### Il monitor locale, come riserva manuale
 
-## Fase 2: copertura anche a PC spento
+L'attività `PokePoke-Monitor` esiste ancora ma è **disattivata**: faceva girare
+il monitor direttamente sul PC, prima che ci fosse GitHub. Se Actions dovesse
+dare problemi, si riaccende in un comando e il monitoraggio riparte senza
+dipendere da nulla di remoto:
 
-Il codice per la copertura 24/7 è già pronto, ma è inerte finché la repo non
-viene collegata a GitHub. Richiede un login che solo tu puoi fare.
+```powershell
+schtasks /change /tn PokePoke-Monitor /enable
+schtasks /change /tn PokePoke-Runner  /disable   # per non averli entrambi
+```
 
-L'architettura è ibrida e **non produce avvisi doppi**: il runner cloud, prima
-di ogni giro, chiede a GitHub se il workflow del PC ha un'esecuzione in corso.
-Se sì, salta il giro senza nemmeno contattare Amazon. C'è sempre al massimo un controllore
-attivo, e il PC — che ha IP residenziale e viene bloccato molto meno — vince
-sempre quando è acceso.
+In quel caso il registro torna in `monitor.log`, accanto allo script.
 
-Passi:
+## Cosa è configurato su GitHub
 
-1. **Crea la repo e caricala.** Deve essere **pubblica**: su repo privata il
-   piano gratuito dà 2000 minuti al mese e il solo job cloud ne consumerebbe
-   circa 40.000. Il codice è pubblico, le credenziali restano nei Secrets.
+Già fatto e funzionante. Documentato qui per poterlo rifare, spostare su un
+altro PC o capire cosa toccare se qualcosa smette di andare.
 
-   ```bash
-   git remote add origin https://github.com/<tuo-utente>/<repo>.git
-   git push -u origin implementazione:main
-   ```
+**Repo pubblica.** Serve la visibilità pubblica: su repo privata il piano
+gratuito dà 2000 minuti di Actions al mese e il solo job cloud ne consumerebbe
+circa 40.000. Il codice è pubblico, le credenziali no.
 
-2. **Aggiungi due Secrets** (Settings → Secrets and variables → Actions):
-   `TG_BOT_TOKEN` e `TG_CHAT_ID`, che trovi nel file `.env` locale. Non serve
-   nessun token aggiuntivo: per sapere se il PC è vivo, il runner cloud guarda
-   se il workflow del PC ha un'esecuzione in corso, e per quello basta il
-   token automatico di Actions.
+**Due Secrets** (Settings → Secrets and variables → Actions): `TG_BOT_TOKEN` e
+`TG_CHAT_ID`, gli stessi del `.env` locale. Non serve altro: per sapere se il
+PC è vivo basta il token automatico di Actions, perché il segnale sono le
+esecuzioni del workflow e non lo stato dei runner (leggere i runner
+richiederebbe un token con permesso *Administration*, cioè un terzo secret da
+creare e da far scadere).
 
-3. **Installa il runner self-hosted sul PC** (Settings → Actions → Runners →
-   New self-hosted runner → Windows) e registralo come servizio, così parte da
-   solo:
+**Runner self-hosted** registrato come `pokepoke-pc` con etichette
+`self-hosted, windows, pokepoke`, installato in `C:ctions-runner`. Per
+rigenerarlo da zero:
 
-   ```powershell
-   ./run.cmd --once   # prova
-   ./svc.sh install   # oppure, su Windows: .\svc.cmd install && .\svc.cmd start
-   ```
+```bash
+gh api -X POST repos/<utente>/<repo>/actions/runners/registration-token --jq .token
+cd C:/actions-runner
+./config.cmd --unattended --replace --url https://github.com/<utente>/<repo>   --token <token> --name pokepoke-pc --labels self-hosted,windows,pokepoke
+```
 
-4. **Disattiva il task di Windows**, altrimenti monitor locale e runner
-   GitHub lavorerebbero in parallelo:
+Poi il task che lo tiene acceso, descritto sopra.
 
-   ```powershell
-   schtasks /delete /tn PokePoke-Monitor /f
-   ```
+**Una trappola da ricordare:** il workflow del PC non usa `actions/setup-python`.
+Quella action installa Python con `InstallAllUsers=1`, che vuole privilegi di
+amministratore: sul runner self-hosted il job resta appeso lì per sempre. Sul
+PC Python c'è già. Nel workflow cloud invece `setup-python` serve e resta.
 
-I due workflow (`.github/workflows/`) partono ogni ora e girano 55 minuti,
-perché il cron di GitHub non scende sotto i 5 minuti: la cadenza di 60 secondi
-la fa il ciclo interno. Lo stato fra un'esecuzione e l'altra viaggia nella
-cache di Actions, così un prodotto già visto disponibile non rigenera un
-avviso ogni ora.
+Lo stato fra un'esecuzione e l'altra viaggia nella cache di Actions, così un
+prodotto già visto disponibile non rigenera un avviso ogni ora.
 
 ## Bot Telegram
 
@@ -166,7 +183,7 @@ monitor.py      ciclo di controllo, CLI, sorveglianza tecnica
 amazon.py       scaricamento pagine e interpretazione della disponibilità
 notifiche.py    messaggi Telegram e lettura credenziali
 stato.py        stato persistente e regole di transizione
-leader.py       chi controlla fra PC e cloud (fase 2)
+leader.py       chi controlla fra PC e cloud
 config.json     prodotti, canarino, tempi e soglie
 tests/          test offline su pagine Amazon reali salvate
 docs/           spec di progettazione e piano di implementazione
@@ -178,7 +195,7 @@ docs/           spec di progettazione e piano di implementazione
 python -m pytest tests/ -q
 ```
 
-37 test, tutti offline. Le fixture sono pagine Amazon reali salvate il
+36 test, tutti offline. Le fixture sono pagine Amazon reali salvate il
 2026-09-24: un prodotto su invito, uno acquistabile venduto da Amazon, uno
 acquistabile ma venduto da terzi, e la pagina anti-bot vera. La quinta è
 sintetica e dichiarata tale in testa al file.
