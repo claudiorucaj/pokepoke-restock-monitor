@@ -6,6 +6,11 @@ name: Monitor (PC)
 # Il cron di GitHub non scende sotto i 5 minuti, quindi la frequenza di 60
 # secondi la fa il ciclo interno a monitor.py: il job vive 55 minuti e il
 # cron lo riavvia ogni ora.
+#
+# Nessun actions/setup-python qui, a differenza del workflow cloud: sul PC
+# Python e gia installato, e setup-python proverebbe a installarlo con
+# InstallAllUsers=1, che richiede privilegi di amministratore che il runner
+# non ha. Il job resterebbe appeso a quel passaggio, come e successo.
 
 on:
   schedule:
@@ -18,17 +23,16 @@ concurrency:
 
 jobs:
   controlla:
-    runs-on: [self-hosted]
+    runs-on: [self-hosted, pokepoke]
     timeout-minutes: 70
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.13"
+      - name: Python disponibile sul PC
+        run: python --version
 
       - name: Installa dipendenze
-        run: pip install -r requirements.txt
+        run: python -m pip install --quiet -r requirements.txt
 
       - name: Verifica il parser prima di fidarsi
         run: python monitor.py --selftest
@@ -52,5 +56,3 @@ jobs:
         with:
           path: state.json
           key: stato-${{ github.run_id }}
-
-# (push di attivazione indicizzazione Actions)
