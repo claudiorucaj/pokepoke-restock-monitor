@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import socket
 import sys
 import time
@@ -25,6 +26,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 
 import amazon
+import leader
 import stato as stato_mod
 from amazon import ACQUISTABILE, NON_ACQUISTABILE, SCONOSCIUTO, Esito
 from notifiche import Telegram, leggi_credenziali, messaggio_esaurito, messaggio_restock
@@ -246,6 +248,11 @@ def main(argv=None) -> int:
     p.add_argument("--test-telegram", action="store_true", help="manda un messaggio di prova")
     p.add_argument("--selftest", action="store_true", help="verifica il parser, offline")
     p.add_argument("--durata-min", type=int, default=55, help="minuti di esecuzione")
+    p.add_argument(
+        "--cede-al-pc",
+        action="store_true",
+        help="salta il giro se il runner sul PC sta gia lavorando (uso cloud)",
+    )
     args = p.parse_args(argv)
 
     if args.selftest:
@@ -281,9 +288,22 @@ def main(argv=None) -> int:
     log(f"avvio: {len(cfg['prodotti'])} prodotti, ciclo {cfg['intervallo_ciclo_s']}s"
         f"{' (dry-run)' if args.dry_run else ''}")
 
+    repo = os.environ.get("GITHUB_REPOSITORY", "")
+    token_runner = os.environ.get("PAT_RUNNERS", "")
+
     while True:
         numero_giro += 1
         inizio = time.monotonic()
+
+        # Il runner cloud non tocca Amazon finche il PC copre: due
+        # controllori insieme raddoppierebbero le richieste e quindi i blocchi.
+        if args.cede_al_pc and leader.pc_attivo(repo, token_runner):
+            log(f"giro {numero_giro}: il PC sta lavorando, cedo")
+            if args.once or datetime.now() >= scadenza:
+                break
+            time.sleep(cfg.get("intervallo_ciclo_s", 60))
+            continue
+
         log(f"giro {numero_giro}")
         ultimo_riepilogo = giro(cfg, sess, tg, dati, dry_run=args.dry_run)
         stato_mod.salva(STATO, dati)
