@@ -62,3 +62,5 @@ jobs:
         with:
           path: state.json
           key: stato-${{ github.run_id }}
+
+# (push di attivazione indicizzazione Actions)
