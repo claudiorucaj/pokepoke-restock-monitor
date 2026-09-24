@@ -36,8 +36,25 @@ CONFIG = BASE / "config.json"
 STATO = BASE / "state.json"
 
 
+REGISTRO = BASE / "monitor.log"
+
+
 def log(*parti):
-    print(datetime.now().strftime("%H:%M:%S"), *parti, flush=True)
+    """Scrive su schermo e su monitor.log.
+
+    Il file viene aperto e chiuso a ogni riga di proposito. Tenendolo aperto
+    per tutta la vita del processo, come farebbe un redirect del prompt, una
+    seconda istanza non riuscirebbe nemmeno ad aprirlo e morirebbe muta: il
+    caso che conta di piu da vedere nel registro (una partenza doppia) sarebbe
+    l'unico invisibile.
+    """
+    riga = " ".join([datetime.now().strftime("%H:%M:%S"), *(str(p) for p in parti)])
+    print(riga, flush=True)
+    try:
+        with open(REGISTRO, "a", encoding="utf-8") as f:
+            f.write(riga + "\n")
+    except OSError:
+        pass
 
 
 def leggi_config(percorso=CONFIG) -> dict:
@@ -328,4 +345,14 @@ def main(argv=None) -> int:
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    # Lo schianto va nel registro: avvia.cmd non reindirizza nulla su file,
+    # quindi senza questo una traccia di stack andrebbe persa.
+    try:
+        raise SystemExit(main())
+    except SystemExit:
+        raise
+    except BaseException:
+        import traceback
+
+        log("SCHIANTO:\n" + traceback.format_exc())
+        raise

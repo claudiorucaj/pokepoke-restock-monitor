@@ -1,8 +1,9 @@
 @echo off
 rem Lancia un ciclo di monitoraggio da 55 minuti.
-rem Il task di Windows lo riavvia ogni ora: se il ciclo muore per qualsiasi
-rem motivo, al massimo si resta scoperti fino allo scatto successivo.
+rem
+rem Nessun redirect su file: qualunque file aperto qui resterebbe bloccato per
+rem tutta la durata del processo, e la seconda istanza morirebbe nel tentativo
+rem di aprirlo invece di annunciarsi nel registro. Il registro e gli eventuali
+rem schianti li scrive monitor.py, che apre e chiude monitor.log riga per riga.
 cd /d "%~dp0"
-echo. >> monitor.log
-echo ===== avvio %date% %time% budget 55 min ===== >> monitor.log
-python monitor.py --durata-min 55 >> monitor.log 2>&1
+python monitor.py --durata-min 55 >nul 2>&1
