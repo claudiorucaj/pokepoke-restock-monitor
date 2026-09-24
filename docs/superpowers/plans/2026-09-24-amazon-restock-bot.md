@@ -41,7 +41,7 @@ Il cuore del sistema e il punto in cui fallirebbe per primo. Va scritto per prim
   - `analizza(testo_html: str) -> Esito`
   - Costanti `ACQUISTABILE`, `NON_ACQUISTABILE`, `SCONOSCIUTO` (stringhe).
 
-- [ ] **Step 1: Creare la fixture sintetica "non disponibile"**
+- [x] **Step 1: Creare la fixture sintetica "non disponibile"**
 
 Derivarla dalla pagina reale su invito sostituendo il testo di disponibilità e togliendo il buy-now. Va etichettata come sintetica in testa al file.
 
@@ -56,7 +56,7 @@ out = "<!-- FIXTURE SINTETICA: derivata da invito_B0H9HFPRRD.html, disponibilita
 pathlib.Path("tests/fixtures/nondisponibile_sintetica.html").write_text(out, encoding="utf-8")
 ```
 
-- [ ] **Step 2: Scrivere i test che falliscono**
+- [x] **Step 2: Scrivere i test che falliscono**
 
 ```python
 import pathlib, pytest
@@ -99,12 +99,12 @@ def test_stringa_vuota_e_sconosciuto():
     assert analizza("").stato == SCONOSCIUTO
 ```
 
-- [ ] **Step 3: Verificare che falliscano**
+- [x] **Step 3: Verificare che falliscano**
 
 Run: `python -m pytest tests/test_amazon.py -v`
 Expected: FAIL, `ModuleNotFoundError: No module named 'amazon'`
 
-- [ ] **Step 4: Implementare `amazon.py` (sola parte di parsing)**
+- [x] **Step 4: Implementare `amazon.py` (sola parte di parsing)**
 
 Regex verificate sulle fixture reali: il blocco `id="availability"` contiene coda JSON da tagliare al primo `{`; le coppie venditore stanno in `offer-display-feature-name` / `offer-display-feature-text-message`, con etichetta `Venditore` oppure `Speditore / Venditore`.
 
@@ -188,12 +188,12 @@ def _prezzo(t):
     return f"{m.group(1)},{f.group(1) if f else '00'} EUR"
 ```
 
-- [ ] **Step 5: Verificare che i test passino**
+- [x] **Step 5: Verificare che i test passino**
 
 Run: `python -m pytest tests/test_amazon.py -v`
 Expected: 6 passed. Se `test_prodotto_venduto_da_amazon_e_acquistabile` fallisce sul prezzo, ispezionare la fixture e correggere `_prezzo`, non allentare l'asserzione.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add amazon.py tests/test_amazon.py tests/fixtures/nondisponibile_sintetica.html
@@ -216,7 +216,7 @@ git commit -m "Parser disponibilita Amazon con test su pagine reali"
   - `controlla(asin: str, sess, **kw) -> Esito`
   - `url_prodotto(asin: str) -> str`
 
-- [ ] **Step 1: Scrivere i test che falliscono**
+- [x] **Step 1: Scrivere i test che falliscono**
 
 Il retry si testa con una sessione finta: nessuna rete nei test.
 
@@ -250,12 +250,12 @@ def test_http_503_conta_come_blocco():
     assert scarica("X", sess, dormi=lambda s: None) is not None
 ```
 
-- [ ] **Step 2: Verificare che falliscano**
+- [x] **Step 2: Verificare che falliscano**
 
 Run: `python -m pytest tests/test_amazon.py -v`
 Expected: FAIL, `ImportError: cannot import name 'scarica'`
 
-- [ ] **Step 3: Implementare**
+- [x] **Step 3: Implementare**
 
 ```python
 UA = [
@@ -293,12 +293,12 @@ def controlla(asin, sess, **kw):
     return analizza(testo)
 ```
 
-- [ ] **Step 4: Verificare che i test passino**
+- [x] **Step 4: Verificare che i test passino**
 
 Run: `python -m pytest tests/test_amazon.py -v`
 Expected: 10 passed.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add amazon.py tests/test_amazon.py
@@ -320,7 +320,7 @@ git commit -m "Scaricamento con retry, rotazione User-Agent e rilevamento blocco
   - `salva(percorso: Path, dati: dict) -> None`
   - `transizione(precedente: str | None, nuovo: str) -> str | None` che ritorna `"RESTOCK"`, `"ESAURITO"` o `None`.
 
-- [ ] **Step 1: Scrivere i test che falliscono**
+- [x] **Step 1: Scrivere i test che falliscono**
 
 ```python
 import json
@@ -361,12 +361,12 @@ def test_file_corrotto_non_esplode(tmp_path):
     assert carica(p) == {}
 ```
 
-- [ ] **Step 2: Verificare che falliscano**
+- [x] **Step 2: Verificare che falliscano**
 
 Run: `python -m pytest tests/test_stato.py -v`
 Expected: FAIL, `ModuleNotFoundError: No module named 'stato'`
 
-- [ ] **Step 3: Implementare `stato.py`**
+- [x] **Step 3: Implementare `stato.py`**
 
 ```python
 def carica(percorso):
@@ -393,12 +393,12 @@ def transizione(precedente, nuovo):
     return None
 ```
 
-- [ ] **Step 4: Verificare che i test passino**
+- [x] **Step 4: Verificare che i test passino**
 
 Run: `python -m pytest tests/test_stato.py -v`
 Expected: 8 passed.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add stato.py tests/test_stato.py
@@ -421,7 +421,7 @@ git commit -m "Stato persistente e regole di transizione"
   - `messaggio_esaurito(asin, esito) -> str`
   - `leggi_credenziali(cartella: Path) -> tuple[str|None, str|None]` che legge da variabili d'ambiente e, se assenti, da `.env`.
 
-- [ ] **Step 1: Scrivere i test che falliscono**
+- [x] **Step 1: Scrivere i test che falliscono**
 
 ```python
 from notifiche import messaggio_restock, messaggio_esaurito, leggi_credenziali
@@ -454,12 +454,12 @@ def test_variabili_ambiente_hanno_precedenza(tmp_path, monkeypatch):
     assert leggi_credenziali(tmp_path) == ("da-env", "999")
 ```
 
-- [ ] **Step 2: Verificare che falliscano**
+- [x] **Step 2: Verificare che falliscano**
 
 Run: `python -m pytest tests/test_notifiche.py -v`
 Expected: FAIL, `ModuleNotFoundError: No module named 'notifiche'`
 
-- [ ] **Step 3: Implementare `notifiche.py`**
+- [x] **Step 3: Implementare `notifiche.py`**
 
 I messaggi usano `parse_mode=HTML` e il link va in chiaro perché Telegram lo renda toccabile.
 
@@ -481,16 +481,16 @@ def messaggio_esaurito(asin, esito):
 
 `Telegram.comandi` usa `getUpdates` con `offset` memorizzato e `timeout=0`, ritorna la lista dei testi comando ricevuti.
 
-- [ ] **Step 4: Verificare che i test passino**
+- [x] **Step 4: Verificare che i test passino**
 
 Run: `python -m pytest tests/test_notifiche.py -v`
 Expected: 4 passed.
 
-- [ ] **Step 5: Verifica dal vivo**
+- [x] **Step 5: Verifica dal vivo**
 
 Run: `python monitor.py --test-telegram` (dopo il Task 5) e controllare che il messaggio arrivi in chat.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add notifiche.py tests/test_notifiche.py
@@ -513,7 +513,7 @@ git commit -m "Notifiche Telegram e lettura credenziali"
   - `main(argv) -> int`
   - Flag CLI: `--once`, `--dry-run`, `--test-telegram`, `--selftest`, `--durata-min N`
 
-- [ ] **Step 1: Scrivere `config.json`**
+- [x] **Step 1: Scrivere `config.json`**
 
 ```json
 {
@@ -537,7 +537,7 @@ git commit -m "Notifiche Telegram e lettura credenziali"
 }
 ```
 
-- [ ] **Step 2: Scrivere i test del giro che falliscono**
+- [x] **Step 2: Scrivere i test del giro che falliscono**
 
 Il giro si testa con controllore finto: nessuna rete.
 
@@ -578,12 +578,12 @@ def test_dry_run_non_invia():
     assert tg.inviati == []
 ```
 
-- [ ] **Step 3: Verificare che falliscano**
+- [x] **Step 3: Verificare che falliscano**
 
 Run: `python -m pytest tests/test_monitor.py -v`
 Expected: FAIL, `ModuleNotFoundError: No module named 'monitor'`
 
-- [ ] **Step 4: Implementare `monitor.py`**
+- [x] **Step 4: Implementare `monitor.py`**
 
 `giro` accetta un parametro `controllore` con default `amazon.controlla`: è ciò che rende il ciclo testabile senza rete. Per ogni prodotto: controlla, calcola la transizione, invia se necessario, aggiorna lo stato solo se non è `SCONOSCIUTO`, rispetta `pausa_tra_prodotti_s`.
 
@@ -591,17 +591,17 @@ Il ciclo principale gira finché non scade `--durata-min` (default 55, per allin
 
 Sorveglianza tecnica: se tutti i prodotti risultano `SCONOSCIUTO` per più di `minuti_cecita_avviso` consecutivi, invia una volta l'avviso di cecità, poi tace per `cooldown_avvisi_tecnici_min`. Se il canarino risulta non acquistabile, invia l'avviso di parser rotto con lo stesso cooldown.
 
-- [ ] **Step 5: Verificare che i test passino**
+- [x] **Step 5: Verificare che i test passino**
 
 Run: `python -m pytest tests/ -v`
 Expected: tutti verdi (22 test).
 
-- [ ] **Step 6: Giro reale in sola lettura**
+- [x] **Step 6: Giro reale in sola lettura**
 
 Run: `python monitor.py --once --dry-run`
 Expected: elenca i 7 prodotti con stato `NON_ACQUISTABILE` e motivo `disponibilita: Disponibile su invito`, senza inviare nulla.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add monitor.py config.json tests/test_monitor.py
@@ -619,16 +619,16 @@ Rende il bot operativo subito, senza alcuna azione dell'utente.
 - Create: `avvia.cmd`
 - Create: `installa_task_windows.ps1`
 
-- [ ] **Step 1: Scrivere `.env` con le credenziali del bot esistente**
+- [x] **Step 1: Scrivere `.env` con le credenziali del bot esistente**
 
 Copiare `TG_BOT_TOKEN` e `TG_CHAT_ID` da `../iphone 17/.env`. Il file è già in `.gitignore`.
 
-- [ ] **Step 2: Verificare la consegna del messaggio**
+- [x] **Step 2: Verificare la consegna del messaggio**
 
 Run: `python monitor.py --test-telegram`
 Expected: messaggio ricevuto in chat Telegram.
 
-- [ ] **Step 3: Scrivere `avvia.cmd`**
+- [x] **Step 3: Scrivere `avvia.cmd`**
 
 ```bat
 @echo off
@@ -636,7 +636,7 @@ cd /d "%~dp0"
 python monitor.py --durata-min 55 >> monitor.log 2>&1
 ```
 
-- [ ] **Step 4: Scrivere e lanciare `installa_task_windows.ps1`**
+- [x] **Step 4: Scrivere e lanciare `installa_task_windows.ps1`**
 
 Task oraria che riavvia il ciclo, con `-StartWhenAvailable` per recuperare i riavvii del PC:
 
@@ -647,11 +647,11 @@ $impostazioni = New-ScheduledTaskSettingsSet -StartWhenAvailable -MultipleInstan
 Register-ScheduledTask -TaskName "PokePoke-Monitor" -Action $azione -Trigger $trigger -Settings $impostazioni -Force
 ```
 
-- [ ] **Step 5: Verificare che il task sia attivo**
+- [x] **Step 5: Verificare che il task sia attivo**
 
 Run: `Get-ScheduledTask -TaskName "PokePoke-Monitor"` e controllare `monitor.log` dopo qualche minuto.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add avvia.cmd installa_task_windows.ps1
@@ -670,30 +670,30 @@ Pronti all'uso ma inerti finché l'utente non collega la repo a GitHub.
 - Create: `requirements.txt`
 - Create: `README.md`
 
-- [ ] **Step 1: Scrivere `requirements.txt`**
+- [x] **Step 1: Scrivere `requirements.txt`**
 
 ```
 requests>=2.31
 ```
 
-- [ ] **Step 2: Scrivere `watch-pc.yml`**
+- [x] **Step 2: Scrivere `watch-pc.yml`**
 
 Cron orario su `runs-on: self-hosted`, `concurrency` per non sovrapporre, `--durata-min 55`, secrets `TG_BOT_TOKEN` e `TG_CHAT_ID` passati come variabili d'ambiente.
 
-- [ ] **Step 3: Scrivere `watch-cloud.yml`**
+- [x] **Step 3: Scrivere `watch-cloud.yml`**
 
 Identico ma su `ubuntu-latest` e con `MODO=cloud`: prima di ogni giro interroga `GET /repos/{owner}/{repo}/actions/runners` con `PAT_RUNNERS`; se un runner self-hosted risulta `online` e `busy`, salta il giro senza contattare Amazon.
 
-- [ ] **Step 4: Scrivere `README.md`**
+- [x] **Step 4: Scrivere `README.md`**
 
 Deve coprire: cosa fa il bot, i 7 prodotti, come si legge `config.json`, i comandi `/status` e `/lista`, come si attiva la fase 2 (creazione repo pubblica, tre secrets, installazione del runner self-hosted su Windows come servizio), e come si sostituisce il bot condiviso con uno dedicato creato con BotFather.
 
-- [ ] **Step 5: Verificare la sintassi YAML**
+- [x] **Step 5: Verificare la sintassi YAML**
 
 Run: `python -c "import yaml,glob; [yaml.safe_load(open(f, encoding='utf-8')) for f in glob.glob('.github/workflows/*.yml')]; print('yaml ok')"`
 Expected: `yaml ok`
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add .github requirements.txt README.md
@@ -711,3 +711,45 @@ git commit -m "Fase 2: workflow GitHub Actions e documentazione di attivazione"
 **Coerenza dei tipi.** `Esito` ha gli stessi cinque campi in tutti i task. `transizione` ritorna `"RESTOCK"`, `"ESAURITO"` o `None` sia nel Task 3 che nel Task 5. `controlla(asin, sess, **kw)` ha la stessa firma nel Task 2 e nel parametro `controllore` del Task 5. `url_prodotto` è definita una volta nel Task 2 e usata nel Task 4.
 
 Lo scostamento dalla spec è uno solo e deliberato: la spec elencava un unico `monitor.py`, il piano lo divide in quattro moduli a responsabilità singola. Il comportamento è identico e i confini sono più facili da testare.
+
+
+---
+
+## Esito — 24 settembre 2026
+
+Tutti e sette i task completati. Il bot e in esercizio: repo
+`claudiorucaj/pokepoke-restock-monitor`, runner self-hosted sul PC come fonte
+primaria, runner cloud come riserva. Catena completa verificata dal vivo, fino
+al messaggio Telegram ricevuto.
+
+Cinque scostamenti dal piano, tutti imposti da cose scoperte installando.
+
+**`actions/setup-python` tolto dal workflow del PC.** Installa Python con
+`InstallAllUsers=1`, che richiede privilegi di amministratore che l'utente non
+ha: il job restava appeso a quel passaggio senza errore. Sul PC Python c'e
+gia. Sul workflow cloud resta, perche li serve.
+
+**Leadership letta dalle esecuzioni, non dai runner.** Il piano interrogava
+`/actions/runners`, che richiede un token con permesso *Administration* e
+quindi un terzo secret. Lo stesso segnale si ottiene da
+`/actions/workflows/watch-pc.yml/runs?status=in_progress`: un PC spento lascia
+il job in coda anziche in corso. Per quello basta il token automatico di
+Actions. Un secret in meno da creare e da far scadere.
+
+**Il registro lo scrive Python, non il redirect del prompt.** Con
+`python ... >> monitor.log` la prima istanza teneva il file aperto per 55
+minuti e la seconda moriva nel tentativo di aprirlo, prima ancora di arrivare
+al lucchetto e senza lasciare traccia: il caso piu importante da vedere nel
+registro era l'unico invisibile.
+
+**Guardiano nel lanciatore del runner.** Il runner GitHub non rifiuta di
+avviarsi due volte, e il task ogni 5 minuti ne accumulava uno ogni cinque
+minuti, tutti a contendersi la stessa sessione. Il lanciatore ora esce se un
+`Runner.Listener.exe` e gia vivo.
+
+**Cron del cloud sfasato a :04.** Partendo entrambi a :00, il runner cloud —
+che si avvia in pochi secondi — vedeva il job del PC ancora in coda invece che
+in corso, si credeva scoperto e monitorava in doppio.
+
+Il runner gira tramite attivita pianificata e non come servizio Windows,
+sempre per l'assenza di privilegi di amministratore.
