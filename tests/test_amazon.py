@@ -49,3 +49,49 @@ def test_non_disponibile():
 
 def test_stringa_vuota_e_sconosciuto():
     assert analizza("").stato == SCONOSCIUTO
+
+
+# --- scaricamento con retry -------------------------------------------------
+
+from amazon import scarica, url_prodotto  # noqa: E402
+
+
+class SessioneFinta:
+    """Sessione HTTP finta: restituisce risposte predefinite, niente rete."""
+
+    def __init__(self, risposte):
+        self.risposte = list(risposte)
+        self.chiamate = 0
+
+    def get(self, url, timeout=None, headers=None):
+        self.chiamate += 1
+        corpo, codice = self.risposte.pop(0)
+
+        class R:
+            pass
+
+        r = R()
+        r.text = corpo
+        r.status_code = codice
+        return r
+
+
+def test_url_canonico():
+    assert url_prodotto("B0H9HFPRRD") == "https://www.amazon.it/dp/B0H9HFPRRD"
+
+
+def test_riprova_dopo_blocco_e_riesce():
+    buona = leggi("invito_B0H9HFPRRD.html")
+    sess = SessioneFinta([("<html>bloccato</html>", 200), (buona, 200)])
+    assert scarica("X", sess, dormi=lambda s: None) == buona
+    assert sess.chiamate == 2
+
+
+def test_ritorna_none_se_sempre_bloccato():
+    sess = SessioneFinta([("corto", 200)] * 3)
+    assert scarica("X", sess, tentativi=3, dormi=lambda s: None) is None
+
+
+def test_http_503_conta_come_blocco():
+    sess = SessioneFinta([("", 503), (leggi("invito_B0H9HFPRRD.html"), 200)])
+    assert scarica("X", sess, dormi=lambda s: None) is not None

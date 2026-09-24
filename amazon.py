@@ -15,7 +15,10 @@ from __future__ import annotations
 
 import html
 import re
+import time
 from dataclasses import dataclass
+
+import requests
 
 ACQUISTABILE = "ACQUISTABILE"
 NON_ACQUISTABILE = "NON_ACQUISTABILE"
@@ -125,3 +128,58 @@ def analizza(testo_html: str) -> Esito:
     if not prezzo:
         return Esito(NON_ACQUISTABILE, motivo="prezzo non leggibile", **base)
     return Esito(ACQUISTABILE, motivo=f"acquistabile a {prezzo}", **base)
+
+
+# --- scaricamento -----------------------------------------------------------
+
+UA = [
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+    "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+    "(KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
+    "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+]
+
+
+def url_prodotto(asin: str) -> str:
+    """Forma canonica del link, senza i parametri di tracciamento degli
+    short link amzn.eu."""
+    return f"https://www.amazon.it/dp/{asin}"
+
+
+def sessione() -> requests.Session:
+    s = requests.Session()
+    s.headers.update(
+        {
+            "Accept-Language": "it-IT,it;q=0.9,en;q=0.8",
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+            "Upgrade-Insecure-Requests": "1",
+        }
+    )
+    return s
+
+
+def scarica(asin, sess, tentativi=3, pausa=5.0, dormi=time.sleep) -> str | None:
+    """HTML della pagina prodotto, oppure None se Amazon ci blocca a ogni
+    tentativo. Ogni tentativo cambia User-Agent: sul campo basta a far
+    passare la richiesta successiva."""
+    for i in range(tentativi):
+        try:
+            r = sess.get(
+                url_prodotto(asin), timeout=30, headers={"User-Agent": UA[i % len(UA)]}
+            )
+            if r.status_code == 200 and not e_bloccata(r.text):
+                return r.text
+        except Exception:
+            pass
+        if i < tentativi - 1:
+            dormi(pausa)
+    return None
+
+
+def controlla(asin, sess, **kw) -> Esito:
+    testo = scarica(asin, sess, **kw)
+    if testo is None:
+        return Esito(SCONOSCIUTO, motivo="bloccato dopo tutti i tentativi")
+    return analizza(testo)
