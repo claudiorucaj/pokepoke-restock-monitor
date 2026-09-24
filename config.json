@@ -1,0 +1,19 @@
+{
+  "prodotti": [
+    {"asin": "B0H9HFPRRD", "nome": "Set Allenatore Fuoriclasse 30 Anniversario"},
+    {"asin": "B0H9HDZN97", "nome": "Scatola da collezione Greninja-ex"},
+    {"asin": "B0H9HGQSWR", "nome": "Scatola da collezione Sylveon-ex"},
+    {"asin": "B0H9HPCL27", "nome": "Confezione da due buste"},
+    {"asin": "B0H9HBQKF3", "nome": "Collezione Greninja-ex"},
+    {"asin": "B0H9HJQ1Z9", "nome": "Collezione Sylveon-ex"},
+    {"asin": "B0H99Z9XPG", "nome": "Collezione con raccoglitore"}
+  ],
+  "canarino": "B00LH3DMUO",
+  "ogni_quanti_giri_canarino": 10,
+  "intervallo_ciclo_s": 60,
+  "pausa_tra_prodotti_s": 6,
+  "tentativi_per_prodotto": 3,
+  "pausa_retry_s": 5,
+  "minuti_cecita_avviso": 15,
+  "cooldown_avvisi_tecnici_min": 60
+}
