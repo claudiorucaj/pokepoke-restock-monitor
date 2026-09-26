@@ -16,7 +16,7 @@ from __future__ import annotations
 import html
 import re
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 import requests
 
@@ -41,6 +41,9 @@ class Esito:
     prezzo: str | None = None
     venditore: str | None = None
     motivo: str = ""
+    # La pagina da cui e stato dedotto l'esito, per le istantanee di
+    # diagnosi. Fuori dal repr: sono centinaia di KB.
+    html: str | None = field(default=None, repr=False)
 
 
 def _testo(frammento: str) -> str:
@@ -182,4 +185,6 @@ def controlla(asin, sess, **kw) -> Esito:
     testo = scarica(asin, sess, **kw)
     if testo is None:
         return Esito(SCONOSCIUTO, motivo="bloccato dopo tutti i tentativi")
-    return analizza(testo)
+    esito = analizza(testo)
+    esito.html = testo
+    return esito

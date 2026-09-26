@@ -23,7 +23,10 @@ Sette prodotti su amazon.it, tutti attualmente "Disponibile su invito":
 | B0H9HJQ1Z9 | Collezione Sylveon-ex |
 | B0H99Z9XPG | Collezione con raccoglitore |
 
-Un giro completo dei sette ogni ~60 secondi.
+Un giro completo dei sette dura circa 80 secondi. Due prodotti sono
+*prioritari*, perché sono quelli già visti uscire (Set Allenatore e Confezione
+da due buste): vengono ricontrollati ogni due prodotti normali, cioè circa ogni
+30 secondi. Si regolano in `config.json` con `prioritari` e `prioritari_ogni`.
 
 ## Quando arriva l'avviso
 
@@ -116,9 +119,24 @@ token automatico di Actions di norma non avviano altri workflow, ma
 `workflow_dispatch` è l'eccezione documentata; basta il permesso
 `actions: write`.
 
-Il cron orario resta come riserva: se la catena si spezza (un selftest fallito,
-un guasto di GitHub) la riaggancia al primo avvio che GitHub decide di fare.
-Per fermare il cloud di proposito: `gh workflow disable watch-cloud.yml`.
+Se la catena si spezza (un selftest fallito, un guasto di GitHub) interviene
+il **guardiano** (`guardiano.yml`, cron ogni 10 minuti): se non trova nessun
+run del cloud in corso o in attesa, ti avvisa su Telegram e lo rilancia. Anche
+il suo cron viene saltato spesso da GitHub, ma per riagganciare la catena
+basta che ogni tanto parta. Il cron orario di `watch-cloud.yml` resta come
+ulteriore riserva.
+
+Per fermare il cloud di proposito vanno disattivati entrambi, altrimenti il
+guardiano lo rilancia:
+`gh workflow disable guardiano.yml` e `gh workflow disable watch-cloud.yml`.
+
+### Istantanee delle pagine
+
+Il 25/09 alle 02:32 e alle 08:40 il cloud stava controllando mentre un altro
+canale segnalava un restock, e ha letto "Disponibile su invito". Per capire
+perché, ogni run salva la pagina Amazon che ha visto al primo giro e ogni
+volta che la lettura di un prodotto cambia. Si trovano fra gli artifact del
+run su GitHub (`istantanee-cloud-…`, `istantanee-pc-…`) e restano 7 giorni.
 
 ### Il runner sul PC
 
@@ -205,6 +223,7 @@ amazon.py       scaricamento pagine e interpretazione della disponibilità
 notifiche.py    messaggi Telegram e lettura credenziali
 stato.py        stato persistente e regole di transizione
 leader.py       chi controlla fra PC e cloud
+guardiano.py    rilancia il cloud se la catena si spezza
 config.json     prodotti, canarino, tempi e soglie
 tests/          test offline su pagine Amazon reali salvate
 docs/           spec di progettazione e piano di implementazione
@@ -216,7 +235,7 @@ docs/           spec di progettazione e piano di implementazione
 python -m pytest tests/ -q
 ```
 
-36 test, tutti offline. Le fixture sono pagine Amazon reali salvate il
+45 test, tutti offline. Le fixture sono pagine Amazon reali salvate il
 2026-09-24: un prodotto su invito, uno acquistabile venduto da Amazon, uno
 acquistabile ma venduto da terzi, e la pagina anti-bot vera. La quinta è
 sintetica e dichiarata tale in testa al file.

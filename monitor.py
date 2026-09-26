@@ -37,6 +37,7 @@ STATO = BASE / "state.json"
 
 
 REGISTRO = BASE / "monitor.log"
+ISTANTANEE = BASE / "istantanee"
 
 
 def log(*parti):
@@ -85,16 +86,56 @@ def istanza_unica(porta: int):
 # --- un giro di controllo ---------------------------------------------------
 
 
-def giro(cfg, sess, tg, dati, dry_run=False, controllore=None, dormi=time.sleep) -> dict:
+def sequenza(cfg) -> list[dict]:
+    """Ordine dei controlli in un giro.
+
+    I prodotti prioritari, quelli gia visti uscire, tornano ogni
+    `prioritari_ogni` prodotti normali invece che una volta a giro: una
+    finestra di acquisto puo durare meno di un minuto, e un giro completo
+    dura di piu.
+    """
+    prodotti = cfg["prodotti"]
+    asin_prioritari = cfg.get("prioritari") or []
+    if not asin_prioritari:
+        return list(prodotti)
+    prioritari = [p for p in prodotti if p["asin"] in asin_prioritari]
+    normali = [p for p in prodotti if p["asin"] not in asin_prioritari]
+    ogni = max(1, cfg.get("prioritari_ogni", 2))
+    ordine = []
+    for i, prodotto in enumerate(normali):
+        if i % ogni == 0:
+            ordine += prioritari
+        ordine.append(prodotto)
+    return ordine or prioritari
+
+
+def salva_istantanea(cartella, asin, testo_html):
+    """Conserva la pagina vista, per capire a posteriori cosa mostrava
+    Amazon a questo esecutore. Un errore di disco non ferma il giro."""
+    try:
+        cartella = Path(cartella)
+        cartella.mkdir(parents=True, exist_ok=True)
+        nome = f"{asin}_{datetime.now().strftime('%Y%m%d-%H%M%S-%f')}.html"
+        (cartella / nome).write_text(testo_html, encoding="utf-8")
+    except OSError:
+        pass
+
+
+def giro(cfg, sess, tg, dati, dry_run=False, controllore=None, dormi=time.sleep,
+         istantanee=None, prima_volta=False) -> dict:
     """Controlla tutti i prodotti una volta, invia gli avvisi dovuti e
     aggiorna lo stato. Ritorna un riepilogo del giro.
 
     `controllore` esiste per i test: di default e la funzione che va davvero
     in rete, nei test e una funzione che restituisce esiti finti.
+
+    Con `istantanee` la pagina viene salvata in quella cartella al primo giro
+    (`prima_volta`) e ogni volta che la lettura di un prodotto cambia.
     """
     controllore = controllore or amazon.controlla
     riepilogo = {"letti": 0, "sconosciuti": 0, "acquistabili": [], "dettagli": []}
-    prodotti = cfg["prodotti"]
+    prodotti = sequenza(cfg)
+    gia_salvati = set()
 
     for indice, prodotto in enumerate(prodotti):
         asin = prodotto["asin"]
@@ -108,6 +149,11 @@ def giro(cfg, sess, tg, dati, dry_run=False, controllore=None, dormi=time.sleep)
             esito.titolo = prodotto.get("nome", asin)
 
         precedente = dati.get(asin, {}).get("stato")
+        cambiato = esito.motivo != dati.get(asin, {}).get("motivo")
+        primo = prima_volta and asin not in gia_salvati
+        if istantanee and esito.html and (primo or (cambiato and esito.stato != SCONOSCIUTO)):
+            salva_istantanea(istantanee, asin, esito.html)
+            gia_salvati.add(asin)
         evento = stato_mod.transizione(precedente, esito.stato)
 
         if evento == stato_mod.RESTOCK and not dry_run:
@@ -322,7 +368,8 @@ def main(argv=None) -> int:
             continue
 
         log(f"giro {numero_giro}")
-        ultimo_riepilogo = giro(cfg, sess, tg, dati, dry_run=args.dry_run)
+        ultimo_riepilogo = giro(cfg, sess, tg, dati, dry_run=args.dry_run,
+                                istantanee=ISTANTANEE, prima_volta=ultimo_riepilogo is None)
         stato_mod.salva(STATO, dati)
         sorveglianza.dopo_giro(ultimo_riepilogo)
 

@@ -29,6 +29,11 @@
       "nome": "Collezione con raccoglitore"
     }
   ],
+  "prioritari": [
+    "B0H9HFPRRD",
+    "B0H9HPCL27"
+  ],
+  "prioritari_ogni": 2,
   "canarino": "B00LH3DMUO",
   "ogni_quanti_giri_canarino": 10,
   "intervallo_ciclo_s": 60,

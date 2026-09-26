@@ -99,3 +99,58 @@ def test_nome_da_config_se_amazon_non_da_il_titolo():
 
     giro(CFG, None, tg, {}, controllore=senza_titolo)
     assert "Uno" in tg.inviati[0]
+
+
+# --- prodotti prioritari ----------------------------------------------------
+
+from monitor import sequenza
+
+
+def test_prioritari_intercalati_fra_gli_altri():
+    cfg = {
+        "prodotti": [{"asin": a, "nome": a} for a in ("P1", "A", "B", "P2", "C", "D", "E")],
+        "prioritari": ["P1", "P2"],
+        "prioritari_ogni": 2,
+    }
+    ordine = [p["asin"] for p in sequenza(cfg)]
+    assert ordine == ["P1", "P2", "A", "B", "P1", "P2", "C", "D", "P1", "P2", "E"]
+
+
+def test_senza_prioritari_la_sequenza_e_la_lista():
+    cfg = {"prodotti": [{"asin": "A"}, {"asin": "B"}]}
+    assert [p["asin"] for p in sequenza(cfg)] == ["A", "B"]
+
+
+def test_prioritario_ripetuto_avvisa_una_volta_sola():
+    """Controllato tre volte nello stesso giro, il restock resta uno."""
+    cfg = dict(CFG, prodotti=[{"asin": a, "nome": a} for a in ("B01", "A", "B")],
+               prioritari=["B01"], prioritari_ogni=1)
+    tg = TelegramFinto()
+    giro(cfg, None, tg, {"B01": {"stato": NON_ACQUISTABILE}}, controllore=disponibile)
+    assert len([t for t in tg.inviati if "dp/B01" in t]) == 1
+
+
+# --- istantanee -------------------------------------------------------------
+
+
+def con_html(stato, motivo):
+    def controllore(asin, sess, **kw):
+        return Esito(stato, "Uno", None, "Amazon", motivo, html="<html>pagina</html>")
+    return controllore
+
+
+def test_istantanea_al_primo_giro_e_solo_ai_cambi(tmp_path):
+    invito = con_html(NON_ACQUISTABILE, "disponibilita: Disponibile su invito")
+    dati = {}
+    giro(CFG, None, TelegramFinto(), dati, controllore=invito,
+         istantanee=tmp_path, prima_volta=True)
+    assert len(list(tmp_path.iterdir())) == 1
+
+    giro(CFG, None, TelegramFinto(), dati, controllore=invito, istantanee=tmp_path)
+    assert len(list(tmp_path.iterdir())) == 1
+
+    giro(CFG, None, TelegramFinto(), dati, controllore=con_html(ACQUISTABILE, "acquistabile"),
+         istantanee=tmp_path)
+    salvate = sorted(p.name for p in tmp_path.iterdir())
+    assert len(salvate) == 2
+    assert all(n.startswith("B01_") and n.endswith(".html") for n in salvate)

@@ -87,3 +87,14 @@ jobs:
         with:
           path: state.json
           key: stato-${{ github.run_id }}
+
+      # Le pagine viste al primo giro e a ogni cambio di lettura, per
+      # confrontare a posteriori cosa mostra Amazon al cloud e al PC.
+      - name: Conserva le istantanee
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: istantanee-cloud-${{ github.run_id }}
+          path: istantanee/
+          if-no-files-found: ignore
+          retention-days: 7

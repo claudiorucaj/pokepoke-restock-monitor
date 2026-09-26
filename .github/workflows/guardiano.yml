@@ -1,0 +1,43 @@
+name: Guardiano della catena
+
+# Il workflow cloud si tiene in vita prenotando ogni volta il run successivo.
+# Se la catena si spezza, questo workflow se ne accorge: nessun run del cloud
+# in corso o in attesa significa che nessuno sta guardando Amazon. In quel
+# caso avvisa su Telegram e rilancia il cloud.
+#
+# Il cron di GitHub salta molti avvii, ma qui basta che ne arrivi qualcuno:
+# il lavoro vero lo fa la catena, il guardiano serve solo a riagganciarla.
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+
+permissions:
+  actions: write
+  contents: read
+
+concurrency:
+  group: guardiano
+  cancel-in-progress: true
+
+jobs:
+  sorveglia:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Installa dipendenze
+        run: pip install -r requirements.txt
+
+      - name: Controlla che il monitor cloud sia vivo
+        env:
+          TG_BOT_TOKEN: ${{ secrets.TG_BOT_TOKEN }}
+          TG_CHAT_ID: ${{ secrets.TG_CHAT_ID }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python guardiano.py
