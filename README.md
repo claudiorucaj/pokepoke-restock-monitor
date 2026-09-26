@@ -99,6 +99,38 @@ I due cron sono sfasati di proposito: partendo insieme, il runner cloud — che
 si avvia in pochi secondi — vedrebbe il job del PC ancora in coda e si
 crederebbe scoperto, monitorando in doppio per qualche minuto.
 
+### Chi avvia davvero il cloud: cron-job.org
+
+Il cron di GitHub non è affidabile: il 25/09, su 24 avvii orari previsti per
+`watch-cloud.yml`, ne ha fatti partire 5. Con il PC in sospensione la giornata
+è rimasta scoperta all'80%, e tre restock segnalati da altri canali sono
+passati senza avviso.
+
+Per questo il workflow cloud lo avvia un servizio esterno gratuito,
+[cron-job.org](https://cron-job.org), ogni 10 minuti, con una chiamata
+`workflow_dispatch`:
+
+```
+POST https://api.github.com/repos/claudiorucaj/pokepoke-restock-monitor/actions/workflows/watch-cloud.yml/dispatches
+Authorization: Bearer <token>
+Accept: application/vnd.github+json
+Content-Type: application/json
+
+{"ref":"master"}
+```
+
+Il token è un *fine-grained personal access token* limitato a questa sola repo,
+con il solo permesso **Actions: Read and write**. Va rinnovato alla scadenza
+che si sceglie in fase di creazione.
+
+Perché ogni 10 minuti se il job dura 55: il gruppo di `concurrency` tiene un
+run in esecuzione e uno in attesa, e quello in attesa parte appena l'altro
+finisce. Così fra un'esecuzione e la successiva passa solo il minuto di
+preparazione del job, non l'ora del cron. I run in attesa sostituiti da uno più
+recente compaiono come *cancelled*: è normale, non costano nulla.
+
+Il cron orario resta nel workflow come riserva, se cron-job.org si fermasse.
+
 ### Il runner sul PC
 
 L'utente non è amministratore, quindi il runner **non** è installato come

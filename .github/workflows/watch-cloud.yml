@@ -12,6 +12,13 @@ name: Monitor (cloud, riserva)
 # token con permesso Administration, mentre per le esecuzioni basta il token
 # automatico di Actions con actions: read. Un secret in meno da gestire.
 
+# Chi lo avvia davvero e cron-job.org, ogni 10 minuti, tramite
+# workflow_dispatch. Il cron di GitHub qui sotto resta solo come riserva:
+# il 25/09 su 24 avvii orari previsti ne ha fatti partire 5, lasciando
+# scoperto l'80% della giornata. Con il gruppo di concurrency resta sempre un
+# run in attesa, che parte appena finisce quello in corso: la copertura
+# diventa continua a meno del minuto di preparazione del job.
+
 on:
   schedule:
     # Sfasato di 4 minuti rispetto al workflow del PC di proposito. Partendo
