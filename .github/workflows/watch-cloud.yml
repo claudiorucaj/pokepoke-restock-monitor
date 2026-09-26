@@ -12,12 +12,17 @@ name: Monitor (cloud, riserva)
 # token con permesso Administration, mentre per le esecuzioni basta il token
 # automatico di Actions con actions: read. Un secret in meno da gestire.
 
-# Chi lo avvia davvero e cron-job.org, ogni 10 minuti, tramite
-# workflow_dispatch. Il cron di GitHub qui sotto resta solo come riserva:
+# Il workflow si riavvia da solo: appena il parser e verificato, prenota il
+# run successivo con workflow_dispatch. Il gruppo di concurrency lo tiene in
+# attesa e lo fa partire appena questo finisce, quindi la copertura e continua
+# a meno del minuto di preparazione del job. Il cron di GitHub qui sotto resta
+# solo come riserva per riagganciare la catena se si spezza: da solo non basta,
 # il 25/09 su 24 avvii orari previsti ne ha fatti partire 5, lasciando
-# scoperto l'80% della giornata. Con il gruppo di concurrency resta sempre un
-# run in attesa, che parte appena finisce quello in corso: la copertura
-# diventa continua a meno del minuto di preparazione del job.
+# scoperto l'80% della giornata.
+#
+# Il run successivo lo lancia il token automatico di Actions. Gli eventi
+# generati da quel token di norma non avviano workflow, ma workflow_dispatch
+# fa eccezione: per questo non serve nessun token personale.
 
 on:
   schedule:
@@ -29,7 +34,8 @@ on:
   workflow_dispatch:
 
 permissions:
-  actions: read
+  # write serve solo a prenotare il run successivo.
+  actions: write
   contents: read
 
 concurrency:
@@ -52,6 +58,14 @@ jobs:
 
       - name: Verifica il parser prima di fidarsi
         run: python monitor.py --selftest
+
+      # Dopo il selftest e non prima: con il parser rotto la catena si ferma
+      # invece di rigirare a vuoto ogni minuto, e a riagganciarla ci pensa il
+      # cron orario una volta sistemato il codice.
+      - name: Prenota il run successivo
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh workflow run watch-cloud.yml --repo "$GITHUB_REPOSITORY" --ref "$GITHUB_REF_NAME"
 
       - name: Recupera lo stato del giro precedente
         uses: actions/cache/restore@v4
